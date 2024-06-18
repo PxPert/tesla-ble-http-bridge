@@ -47,17 +47,12 @@ func connectToCar() (bool, error) {
 	}
 	_tmrClean.Stop()
 
-	fmt.Println("Connecting to car...")
-	_tmrClean.Reset(time.Duration(_tmrCleanSecs) * time.Second)
-
-	_connected = true
-	return true, nil
-
 	var err error = nil
 
 	ctx, cancel := context.WithTimeout(context.Background(), _timeout)
 	defer cancel()
 
+	fmt.Println("Creating connection...")
 	_conn, err = ble.NewConnection(ctx, _vin)
 	if err != nil {
 		fmt.Printf("Failed to connect to vehicle: %s", err)
@@ -66,6 +61,7 @@ func connectToCar() (bool, error) {
 	}
 	// defer _conn.Close()
 
+	fmt.Println("New Vehicle costructor")
 	_vehicle, err = vehicle.NewVehicle(_conn, _privKey, nil)
 	if err != nil {
 		fmt.Printf("Failed to connect to vehicle: %s", err)
@@ -73,19 +69,33 @@ func connectToCar() (bool, error) {
 		return false, err
 	}
 
+	fmt.Println("Connecting to car...")
 	if err = _vehicle.Connect(ctx); err != nil {
 		fmt.Printf("Failed to connect to vehicle: %s\n", err)
 		nullifyConnVehicle()
 		return false, err
 	}
 
+	if _privKeyPath != "" {
+		fmt.Println("Starting session to car...")
+		if err = _vehicle.StartSession(ctx, nil); err != nil {
+			fmt.Printf("Failed to perform handshake with vehicle: %s\n", err)
+			return false, err
+		}
+
+	}
+
 	fmt.Println("Car connected")
+	_tmrClean.Reset(time.Duration(_tmrCleanSecs) * time.Second)
 	_connected = true
 	return true, nil
 }
 
 func printCommands(w http.ResponseWriter) {
-	io.WriteString(w, "WARNING: No private key set, the available commands will be very limited\n\n")
+	if _privKey == nil {
+		io.WriteString(w, "WARNING: No private key set, the available commands will be very limited\n\n")
+	}
+
 	io.WriteString(w, "List of supported commands\n")
 	keys := maps.Keys(commands)
 	slices.Sort(keys)
