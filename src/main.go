@@ -37,8 +37,11 @@ func main() {
 
 	if _timeout_str != "" {
 		var timeout_int int
-		err, timeout_int = strconv.Atoi(_timeout_str)
-		_timeout = timeout_int * time.Second
+		timeout_int, err = strconv.Atoi(_timeout_str)
+		if err == nil {
+			_timeout = time.Duration(timeout_int) * time.Second
+		}
+
 	}
 
 	if _vin == "" {
