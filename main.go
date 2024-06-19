@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/teslamotors/vehicle-command/pkg/protocol"
 )
 
 // Settings
+var _timeout_str = os.Getenv("TESLA_SESSION_SECS")
 var _timeout = 30 * time.Second
+
 var _vin = os.Getenv("TESLA_VIN")
 var _privKeyPath = os.Getenv("TESLA_KEY_FILE")
 var _privKey protocol.ECDHPrivateKey = nil
@@ -30,6 +33,12 @@ func main() {
 
 	if _listen_addr == "" {
 		_listen_addr = ":3333"
+	}
+
+	if _timeout_str != "" {
+		var timeout_int int
+		err, timeout_int = strconv.Atoi(_timeout_str)
+		_timeout = timeout_int * time.Second
 	}
 
 	if _vin == "" {
