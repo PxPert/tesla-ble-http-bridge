@@ -1,0 +1,18 @@
+services:
+  tesla-ble-http-bridge:
+    container_name: tesla-ble-http-bridge
+    image: tesla-ble-http-bridge:latest
+    build: ./
+    privileged: true
+    volumes:
+      - /home/pxpert/Progetti/tesla-ble-http-bridge/tmp/:/cert/
+      - /var/run/dbus/:/var/run/dbus/:z
+#    devices:
+#      - "/dev/serial/by-id/usb-dresden_elektronik_ingenieurtechnik_GmbH_ConBee_II_DE2132700-if00:/dev/ttyACM0"
+    ports:
+      - "3333:3333"
+    environment:
+       TZ:  Europe/Amsterdam
+       TESLA_VIN: MY_TESLA
+       TESLA_KEY_FILE: /cert/priv.key
+    restart: on-failure

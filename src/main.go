@@ -61,14 +61,12 @@ func main() {
 	http.HandleFunc("/", handleCommand)
 	http.HandleFunc("/favicon.ico", getFavicon)
 
+	fmt.Printf("starting listening on address %s\n", _listen_addr)
 	err = http.ListenAndServe(_listen_addr, nil)
 
 	if err != nil {
 		fmt.Printf("Error listening on address %s. Error: %s", _listen_addr, err)
 		os.Exit(1)
 		return
-	} else {
-		fmt.Printf("listening on address %s", _listen_addr)
 	}
-
 }
