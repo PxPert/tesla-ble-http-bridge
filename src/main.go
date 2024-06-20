@@ -12,7 +12,7 @@ import (
 
 // Settings
 var _timeout_str = os.Getenv("TESLA_SESSION_SECS")
-var _timeout = 30 * time.Second
+var _timeout = 15 * time.Second
 
 var _vin = os.Getenv("TESLA_VIN")
 var _privKeyPath = os.Getenv("TESLA_KEY_FILE")

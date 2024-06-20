@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/teslamotors/vehicle-command/pkg/connector/ble"
@@ -34,6 +35,28 @@ func nullifyConnVehicle() {
 	_tmrClean.Stop()
 }
 
+func wakeup() (bool, error) {
+	//Wake up vehicle
+	ctx, cancel := context.WithTimeout(context.Background(), _timeout)
+	defer cancel()
+
+	fmt.Println("Waking up vehicele")
+
+	if err := _vehicle.StartSession(ctx, []universalmessage.Domain{protocol.DomainVCSEC}); err != nil {
+		fmt.Printf("Failed to perform handshake with vehicle: %s\n", err)
+		nullifyConnVehicle()
+		return false, err
+	}
+	err := commands["wake"].handler(ctx, nil, _vehicle, nil)
+	if err != nil {
+		fmt.Printf("Failed to send wake command to vehicle: %s\n", err)
+		nullifyConnVehicle()
+		return false, err
+	}
+	fmt.Println("Woke up vehicele")
+
+	return true, nil
+}
 func connectToCar() (bool, error) {
 	if _connected {
 		_tmrClean.Reset(time.Duration(_tmrCleanSecs) * time.Second)
@@ -73,37 +96,41 @@ func connectToCar() (bool, error) {
 
 	fmt.Println("Connecting to car...")
 	if err = _vehicle.Connect(ctx); err != nil {
-		// If the vehicle is sleeping wakes it up
-		if err.Error() == "context deadline exceeded" {
-			//Wake up vehicle
-			fmt.Println("Waking up vehicele")
+		fmt.Printf("Failed to connect to vehicle: %s\n", err)
 
-			if err = _vehicle.StartSession(ctx, []universalmessage.Domain{protocol.DomainVCSEC}); err != nil {
-				fmt.Printf("Failed to perform handshake with vehicle: %s\n", err)
-				nullifyConnVehicle()
-				return false, err
-			}
-			err = commands["wake"].handler(ctx, nil, _vehicle, nil)
-			if err != nil {
-				fmt.Printf("Failed to send wake command to vehicle: %s\n", err)
-				nullifyConnVehicle()
-				return false, err
-			}
+		nullifyConnVehicle()
+		return false, err
 
-		} else {
-			fmt.Printf("Failed to connect to vehicle: %s\n", err)
-
-			nullifyConnVehicle()
-			return false, err
-
-		}
 	}
 
 	if _privKeyPath != "" {
 		fmt.Println("Starting session to car...")
 		if err = _vehicle.StartSession(ctx, nil); err != nil {
-			fmt.Printf("Failed to perform handshake with vehicle: %s\n", err)
-			return false, err
+
+			// If the vehicle is sleeping wakes it up
+			if strings.Contains(err.Error(), "context deadline exceeded") {
+				var ok bool
+				ok, err = wakeup()
+				if ok {
+					ctx, cancel := context.WithTimeout(context.Background(), _timeout)
+					defer cancel()
+					if err = _vehicle.StartSession(ctx, nil); err != nil {
+						fmt.Printf("Failed to perform handshake with vehicle after wake up: %s\n", err)
+						nullifyConnVehicle()
+						return false, err
+					}
+				} else {
+					fmt.Printf("Failed to wake up vehicle: %s\n", err)
+					nullifyConnVehicle()
+					return false, err
+				}
+
+			} else {
+				fmt.Printf("Failed to perform handshake with vehicle: %s\n", err)
+				nullifyConnVehicle()
+				return false, err
+			}
+
 		}
 
 	}
