@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/teslamotors/vehicle-command/pkg/connector/ble"
+	"github.com/teslamotors/vehicle-command/pkg/protocol"
+	"github.com/teslamotors/vehicle-command/pkg/protocol/protobuf/universalmessage"
 	"github.com/teslamotors/vehicle-command/pkg/vehicle"
 	"golang.org/x/exp/maps"
 )
@@ -71,9 +73,30 @@ func connectToCar() (bool, error) {
 
 	fmt.Println("Connecting to car...")
 	if err = _vehicle.Connect(ctx); err != nil {
-		fmt.Printf("Failed to connect to vehicle: %s\n", err)
-		nullifyConnVehicle()
-		return false, err
+		// If the vehicle is sleeping wakes it up
+		if err.Error() == "context deadline exceeded" {
+			//Wake up vehicle
+			fmt.Println("Waking up vehicele")
+
+			if err = _vehicle.StartSession(ctx, []universalmessage.Domain{protocol.DomainVCSEC}); err != nil {
+				fmt.Printf("Failed to perform handshake with vehicle: %s\n", err)
+				nullifyConnVehicle()
+				return false, err
+			}
+			err = commands["wake"].handler(ctx, nil, _vehicle, nil)
+			if err != nil {
+				fmt.Printf("Failed to send wake command to vehicle: %s\n", err)
+				nullifyConnVehicle()
+				return false, err
+			}
+
+		} else {
+			fmt.Printf("Failed to connect to vehicle: %s\n", err)
+
+			nullifyConnVehicle()
+			return false, err
+
+		}
 	}
 
 	if _privKeyPath != "" {
