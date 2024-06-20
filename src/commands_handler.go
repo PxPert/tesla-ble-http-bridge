@@ -44,13 +44,11 @@ func wakeup() (bool, error) {
 
 	if err := _vehicle.StartSession(ctx, []universalmessage.Domain{protocol.DomainVCSEC}); err != nil {
 		fmt.Printf("Failed to perform handshake with vehicle: %s\n", err)
-		nullifyConnVehicle()
 		return false, err
 	}
 	err := commands["wake"].handler(ctx, nil, _vehicle, nil)
 	if err != nil {
 		fmt.Printf("Failed to send wake command to vehicle: %s\n", err)
-		nullifyConnVehicle()
 		return false, err
 	}
 	fmt.Println("Woke up vehicele")
@@ -111,17 +109,11 @@ func connectToCar() (bool, error) {
 			if strings.Contains(err.Error(), "context deadline exceeded") {
 				var ok bool
 				ok, err = wakeup()
+				nullifyConnVehicle()
 				if ok {
-					ctx, cancel := context.WithTimeout(context.Background(), _timeout)
-					defer cancel()
-					if err = _vehicle.StartSession(ctx, nil); err != nil {
-						fmt.Printf("Failed to perform handshake with vehicle after wake up: %s\n", err)
-						nullifyConnVehicle()
-						return false, err
-					}
+					return connectToCar() // Retry
 				} else {
 					fmt.Printf("Failed to wake up vehicle: %s\n", err)
-					nullifyConnVehicle()
 					return false, err
 				}
 
